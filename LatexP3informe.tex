@@ -1,0 +1,174 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage[margin=1in]{geometry}
+
+% Título y autores
+\title{
+    \textbf{Informe sobre E/S Mapeada en Memoria} \\
+    \textbf{Mips Práctica 3}
+}
+\author{
+    Brigido Noguera (29.525.299) \\
+    Ángel Besteiro (30.577.354)
+}
+\date{Martes, 29 de Julio de 2025}
+
+\begin{document}
+
+\maketitle % Genera la portada
+
+\clearpage % Salto de página para el contenido
+
+\section*{Informe sobre E/S Mapeada en Memoria}
+
+\subsection*{1. Explique cómo se organiza la memoria cuando un sistema utiliza memory-mapped I/O. ¿En qué región de memoria se suelen mapear los dispositivos? ¿Qué implicaciones tiene para las instrucciones \texttt{lw} y \texttt{sw}?}
+
+Cuando un sistema utiliza E/S mapeada en memoria (Memory-Mapped I/O), los registros de los dispositivos de hardware se tratan como ubicaciones de memoria estándar. Esto significa que, en lugar de tener un espacio de direcciones separado para los puertos de E/S, los registros de los periféricos se asignan a direcciones dentro del espacio de direcciones de memoria principal.
+
+Los dispositivos suelen mapearse en una región de memoria específica, a menudo en la parte superior del espacio de direcciones de memoria, para evitar conflictos con la memoria RAM principal. Sin embargo, la ubicación exacta puede variar dependiendo de la arquitectura y el diseño del sistema.
+
+Para las instrucciones \texttt{lw} (load word) y \texttt{sw} (store word), esto tiene una implicación significativa: no se necesitan instrucciones especiales para interactuar con los dispositivos de hardware. Las mismas instrucciones que se utilizan para leer (\texttt{lw}) y escribir (\texttt{sw}) en la memoria RAM se emplean para leer y escribir en los registros de los dispositivos periféricos. Esto simplifica el conjunto de instrucciones del procesador, ya que el hardware puede tratar todas las operaciones de acceso como si fueran accesos a memoria.
+
+\subsection*{2. ¿Cuál es la principal diferencia entre memory-mapped I/O y la entrada/salida por puertos? ¿Qué ventajas y desventajas tiene cada enfoque? ¿Por qué MIPS32 utiliza principalmente memory-mapped I/O?}
+
+La principal diferencia entre E/S mapeada en memoria y la E/S por puertos radica en cómo el procesador accede a los dispositivos periféricos.
+
+\paragraph{E/S Mapeada en Memoria (Memory-Mapped I/O):}
+\begin{itemize}
+    \item \textbf{Funcionamiento:} Los registros de los dispositivos se asignan a direcciones en el espacio de direcciones de memoria. El procesador utiliza las mismas instrucciones de carga y almacenamiento (\texttt{lw}, \texttt{sw}) que usa para acceder a la memoria RAM.
+    \item \textbf{Ventajas:}
+    \begin{itemize}
+        \item \textbf{Simplificación del conjunto de instrucciones:} No se requieren instrucciones de E/S especiales, lo que simplifica el diseño del procesador.
+        \item \textbf{Flexibilidad:} Se pueden usar todas las instrucciones de manipulación de datos y direccionamiento disponibles para la memoria también para los dispositivos.
+        \item \textbf{Acceso directo:} Los dispositivos pueden ser accedidos directamente por el procesador como si fueran ubicaciones de memoria.
+    \end{itemize}
+    \item \textbf{Desventajas:}
+    \begin{itemize}
+        \item \textbf{Espacio de direcciones de memoria consumido:} Parte del espacio de direcciones de memoria se consume por los dispositivos, lo que puede limitar la cantidad de RAM disponible si no se planifica adecuadamente.
+        \item \textbf{Potenciales conflictos de caché:} Los accesos a dispositivos no deberían ser cacheados, lo que requiere mecanismos especiales para deshabilitar el caché para esas regiones.
+    \end{itemize}
+\end{itemize}
+
+\paragraph{E/S por Puertos (Port-Mapped I/O / Isolated I/O):}
+\begin{itemize}
+    \item \textbf{Funcionamiento:} Los dispositivos de E/S tienen su propio espacio de direcciones separado del espacio de direcciones de memoria. El procesador utiliza instrucciones de E/S dedicadas (como \texttt{IN} y \texttt{OUT} en arquitecturas x86) para acceder a estos puertos.
+    \item \textbf{Ventajas:}
+    \begin{itemize}
+        \item \textbf{Espacio de direcciones de memoria no afectado:} El espacio de direcciones de memoria RAM no se ve reducido por los dispositivos de E/S.
+        \item \textbf{Control de acceso:} Las instrucciones de E/S dedicadas pueden ser instrucciones privilegiadas, lo que permite un mejor control de acceso a los dispositivos por parte del sistema operativo.
+    \end{itemize}
+    \item \textbf{Desventajas:}
+    \begin{itemize}
+        \item \textbf{Conjunto de instrucciones más complejo:} Requiere instrucciones de E/S adicionales y específicas, lo que aumenta la complejidad del diseño del procesador.
+        \item \textbf{Menos flexibilidad:} Las operaciones disponibles para los puertos pueden ser limitadas en comparación con las operaciones de memoria.
+    \end{itemize}
+\end{itemize}
+
+\paragraph{Por qué MIPS32 utiliza principalmente E/S mapeada en memoria:}
+MIPS32 utiliza principalmente E/S mapeada en memoria porque simplifica el diseño del conjunto de instrucciones del procesador. Al tratar los registros de los dispositivos como ubicaciones de memoria, el procesador puede usar las mismas instrucciones de carga y almacenamiento para interactuar tanto con la memoria principal como con los periféricos. Esto reduce la complejidad de la unidad de control del procesador y elimina la necesidad de circuitos de hardware adicionales para manejar un espacio de direcciones de E/S separado.
+
+\subsection*{3. En un sistema con memory-mapped I/O ¿Qué problemas pueden surgir si dos dispositivos usan direcciones solapadas? ¿Cómo se evita este conflicto?}
+
+En un sistema con E/S mapeada en memoria, si dos dispositivos usan direcciones solapadas, pueden surgir problemas graves. Cuando el procesador intenta acceder a una dirección en el espacio de memoria que es utilizada por dos dispositivos diferentes, el resultado es impredecible y puede llevar a:
+\begin{itemize}
+    \item \textbf{Comportamiento errático:} El procesador podría leer datos de un dispositivo cuando intenta leer del otro, o escribir datos en ambos, lo que causaría un funcionamiento incorrecto.
+    \item \textbf{Corrupción de datos:} Las escrituras en una dirección compartida podrían sobrescribir configuraciones o datos críticos de un dispositivo que no era el objetivo.
+    \item \textbf{Bloqueos del sistema:} En casos extremos, un conflicto de direcciones podría provocar un bloqueo del sistema o un estado inestable.
+\end{itemize}
+
+\paragraph{Cómo se evita este conflicto:}
+Para evitar conflictos de direcciones, se emplean las siguientes estrategias:
+\begin{itemize}
+    \item \textbf{Planificación del mapa de memoria:} Durante la fase de diseño del hardware y software, se crea un mapa de memoria detallado que asigna rangos de direcciones únicos a cada dispositivo y a la memoria RAM. Este mapa garantiza que no haya solapamientos.
+    \item \textbf{Decodificación de direcciones:} El hardware de decodificación de direcciones es crucial. Cuando el procesador genera una dirección, los circuitos de decodificación determinan a qué componente (RAM, ROM o un periférico específico) corresponde esa dirección y habilitan solo el componente adecuado para la operación de lectura o escritura.
+    \item \textbf{Registros de base y límite:} En sistemas más complejos, se pueden usar registros de base y límite (o unidades de gestión de memoria - MMU) para asignar rangos de direcciones a diferentes módulos o procesos, lo que ayuda a evitar conflictos y proporciona protección de memoria.
+\end{itemize}
+
+\subsection*{4. ¿Por qué se considera que el memory-mapped I/O simplifica el diseño del conjunto de instrucciones de un procesador? ¿Qué tipo de instrucciones adicionales serían necesarias si se usara E/S por puertos?}
+
+El E/S mapeada en memoria simplifica el diseño del conjunto de instrucciones de un procesador porque elimina la necesidad de instrucciones de E/S dedicadas. En cambio, las mismas instrucciones de carga (\texttt{lw}) y almacenamiento (\texttt{sw}) que se utilizan para acceder a la memoria principal se pueden usar para interactuar con los dispositivos periféricos. Esto significa que el conjunto de instrucciones del procesador es más pequeño y homogéneo, lo que puede conducir a un diseño de hardware más simple y eficiente.
+
+Si se usara E/S por puertos, serían necesarias \textbf{instrucciones adicionales} específicas para la entrada/salida. Estas instrucciones podrían incluir:
+\begin{itemize}
+    \item \texttt{IN} (o similar): Para leer datos de un puerto de E/S específico.
+    \item \texttt{OUT} (o similar): Para escribir datos en un puerto de E/S específico.
+    \item Posiblemente, instrucciones para configurar o consultar el estado de los puertos de E/S.
+\end{itemize}
+Estas instrucciones adicionales requerirían lógica de decodificación y control separada en la unidad de control del procesador, aumentando su complejidad.
+
+\subsection*{5. ¿Qué ocurre a nivel del bus de datos y direcciones cuando el procesador accede a una dirección de memoria que corresponde a un dispositivo? ¿Cómo sabe el hardware que debe acceder a un periférico en lugar de la RAM?}
+
+Cuando el procesador accede a una dirección de memoria que corresponde a un dispositivo mapeado en memoria, ocurre lo siguiente a nivel del bus de datos y direcciones:
+\begin{enumerate}
+    \item \textbf{Generación de Dirección y Control:} El procesador coloca la dirección de memoria deseada en el bus de direcciones y las señales de control (lectura/escritura) en el bus de control.
+    \item \textbf{Decodificación de Dirección:} Un circuito de decodificación de direcciones en el sistema (parte del controlador de memoria o de la lógica del bus) examina la dirección. Este circuito está diseñado para reconocer los rangos de direcciones asignados a la RAM, la ROM y los diversos dispositivos periféricos.
+    \item \textbf{Habilitación del Dispositivo/Memoria:} Basándose en la decodificación de la dirección, el circuito de decodificación habilita el chip de memoria (RAM o ROM) o el controlador del dispositivo periférico correspondiente. Solo el componente habilitado responderá a la transacción del bus.
+    \item \textbf{Transferencia de Datos:}
+    \begin{itemize}
+        \item \textbf{Lectura:} Si es una operación de lectura, el dispositivo habilitado coloca los datos de su registro (o la memoria, si es una dirección de RAM) en el bus de datos, y el procesador lee esos datos.
+        \item \textbf{Escritura:} Si es una operación de escritura, el procesador coloca los datos en el bus de datos, y el dispositivo habilitado (o la memoria) los recibe y los almacena en su registro (o ubicación de memoria).
+    \end{itemize}
+\end{enumerate}
+
+\paragraph{¿Cómo sabe el hardware que debe acceder a un periférico en lugar de la RAM?}
+El hardware sabe si debe acceder a un periférico o a la RAM gracias al \textbf{circuito de decodificación de direcciones}. Este circuito es una pieza lógica que, dado un rango de direcciones, activa la señal de selección (chip select) de un componente específico (RAM, ROM, o un periférico). Por ejemplo, si el procesador genera una dirección que cae dentro del rango asignado a un sensor de temperatura, el circuito de decodificación activará la línea de selección de chip del sensor y desactivará las de la RAM, asegurando que la operación de lectura/escritura se dirija solo al sensor.
+
+\subsection*{6. ¿Es posible que un programa normal (sin privilegios) acceda a un dispositivo mapeado en memoria? ¿Qué mecanismos de protección existen para evitar accesos no autorizados?}
+
+Sí, es posible que un programa normal (sin privilegios) acceda a un dispositivo mapeado en memoria, ya que los registros de los dispositivos se encuentran dentro del espacio de direcciones de memoria accesible. Sin embargo, esto representa un riesgo de seguridad y estabilidad para el sistema.
+
+\paragraph{Mecanismos de protección para evitar accesos no autorizados:}
+Para evitar accesos no autorizados por parte de programas sin privilegios, se emplean varios mecanismos de protección, principalmente a nivel de hardware y sistema operativo:
+\begin{itemize}
+    \item \textbf{Unidad de Gestión de Memoria (MMU - Memory Management Unit):} La MMU es un componente de hardware que se encuentra entre el procesador y la memoria. Traduce direcciones lógicas (generadas por el procesador) a direcciones físicas y, lo que es más importante, implementa mecanismos de protección:
+    \begin{itemize}
+        \item \textbf{Protección de páginas:} La MMU divide el espacio de direcciones en páginas y puede asignar permisos (lectura, escritura, ejecución) a cada página. El sistema operativo configura la MMU para que las páginas que contienen los registros de los dispositivos de E/S tengan permisos restringidos, por ejemplo, solo accesibles en modo privilegiado (kernel mode).
+        \item \textbf{Segmentación:} Aunque menos común que la paginación en arquitecturas modernas para la protección general de memoria, la segmentación también puede usarse para aislar regiones de memoria.
+    \end{itemize}
+    \item \textbf{Modos de operación del procesador (Privilege Levels):} Los procesadores modernos operan en diferentes modos de privilegio (por ejemplo, modo usuario y modo kernel/supervisor). El sistema operativo se ejecuta en modo kernel, que tiene acceso total a todos los recursos de hardware, incluyendo los registros de E/S mapeados en memoria. Los programas de usuario se ejecutan en modo usuario, que tiene un conjunto de permisos restringido. Cualquier intento de un programa de usuario de acceder a una dirección de E/S protegida generará una excepción (fault), que es manejada por el sistema operativo, impidiendo el acceso.
+    \item \textbf{Llamadas al sistema (System Calls):} Los programas de usuario no acceden directamente a los dispositivos. En su lugar, solicitan al sistema operativo que realice la operación de E/S en su nombre a través de llamadas al sistema. El sistema operativo (que se ejecuta en modo privilegiado) realiza el acceso al dispositivo y luego devuelve el resultado al programa de usuario. Esto centraliza el control de E/S y permite al sistema operativo aplicar políticas de seguridad.
+\end{itemize}
+
+\subsection*{7. ¿Qué técnicas se pueden emplear para evitar esperas activas innecesarias al interactuar con dispositivos?}
+
+Las esperas activas (busy-waiting o polling) ocurren cuando el procesador verifica repetidamente el estado de un dispositivo en un bucle cerrado, consumiendo ciclos de CPU valiosos que podrían usarse para otras tareas. Para evitar esperas activas innecesarias al interactuar con dispositivos, se emplean las siguientes técnicas:
+
+\begin{itemize}
+    \item \textbf{Interrupciones (Interrupts):}
+    \begin{itemize}
+        \item \textbf{Concepto:} En lugar de que el procesador pregunte continuamente al dispositivo si está listo, el dispositivo notifica al procesador cuando ha completado una operación o cuando hay datos disponibles, generando una señal de interrupción.
+        \item \textbf{Funcionamiento:} Cuando ocurre una interrupción, el procesador suspende su tarea actual, guarda su contexto, y salta a una rutina de servicio de interrupción (ISR - Interrupt Service Routine) específica para ese dispositivo. Una vez que la ISR ha manejado la interrupción, el procesador puede reanudar su tarea original.
+        \item \textbf{Ventajas:} Libera al procesador para realizar otras tareas mientras espera que el dispositivo esté listo, mejorando la eficiencia del sistema.
+        \item \textbf{Ejemplo:} Un sensor de temperatura podría generar una interrupción cuando una nueva lectura esté disponible, o un controlador de disco podría interrumpir al procesador cuando una transferencia de datos ha finalizado.
+    \end{itemize}
+    \item \textbf{Acceso Directo a Memoria (DMA - Direct Memory Access):}
+    \begin{itemize}
+        \item \textbf{Concepto:} DMA es un mecanismo que permite a los dispositivos periféricos transferir datos directamente hacia y desde la memoria principal sin la intervención constante del procesador.
+        \item \textbf{Funcionamiento:} El procesador configura un controlador DMA (que es un circuito de hardware dedicado) con la dirección de origen, la dirección de destino y la cantidad de datos a transferir. Una vez configurado, el controlador DMA toma el control del bus del sistema para realizar la transferencia de datos de forma independiente. Una vez que la transferencia ha finalizado, el controlador DMA notifica al procesador mediante una interrupción.
+        \item \textbf{Ventajas:} Reduce significativamente la carga de la CPU en operaciones de E/S intensivas, como la transferencia de grandes bloques de datos desde un disco duro o una tarjeta de red.
+    \end{itemize}
+    \item \textbf{Sistemas operativos y planificación de tareas:}
+    \begin{itemize}
+        \item Los sistemas operativos modernos utilizan planificadores de tareas para alternar entre diferentes procesos. Cuando un proceso necesita esperar por E/S, el sistema operativo puede ponerlo en un estado de "bloqueo" y programar otro proceso para que se ejecute. Cuando la E/S se completa (generalmente a través de una interrupción), el sistema operativo puede cambiar el estado del proceso de E/S de nuevo a "listo" para que pueda ser programado para ejecutarse.
+    \end{itemize}
+\end{itemize}
+Al combinar interrupciones y DMA, el procesador solo necesita intervenir al inicio y al final de una operación de E/S o cuando se produce un evento específico, evitando así las costosas esperas activas.
+
+\subsection*{8. Análisis y Discusión de los Resultados}
+
+Este apartado estaría destinado a un análisis de los resultados obtenidos tras la implementación de los ejercicios prácticos propuestos (\texttt{InicializarSensor}, \texttt{LeerTemperatura}, \texttt{controlador\_tension}). Se discutiría la correcta funcionalidad de los procedimientos implementados en ensamblador MIPS32, verificando que:
+
+\begin{itemize}
+    \item \textbf{InicializarSensor:} Inicie correctamente el sensor de temperatura escribiendo el valor \texttt{0x2} en \texttt{SensorControl} y espere a que \texttt{SensorEstado} indique que el sensor está inicializado (valor 1). Se analizarían los ciclos de reloj y el uso de registros durante la fase de inicialización.
+    \item \textbf{LeerTemperatura:} Lea el valor de temperatura de \texttt{SensorDatos} una vez que el sensor esté listo. Se validaría el retorno correcto del valor leído y del código de error (-1 en caso de \texttt{SensorEstado} = -1, o 0 si la lectura es exitosa). Se discutiría la implementación de la lógica de manejo de errores y cómo se propaga el código de retorno.
+    \item \textbf{controlador\_tension:} Inicie la medición de tensión arterial escribiendo el valor 1 en \texttt{TensionControl}. Se confirmaría que el procedimiento espera activamente (o utiliza una técnica de sondeo) hasta que \texttt{TensionEstado} sea 1. Finalmente, se verificaría que los valores de tensión sistólica y diastólica se retornan correctamente en los registros especificados (\texttt{\$v0} y \texttt{\$v1}, respectivamente).
+\end{itemize}
+
+Se podrían incluir capturas de pantalla del simulador MARS mostrando la ejecución de los procedimientos, los valores en los registros y en las direcciones de memoria mapeadas a los dispositivos. Además, se discutirían posibles optimizaciones del código, como la reducción de ciclos de reloj, el uso eficiente de los registros y la robustez del manejo de errores. En caso de haber utilizado esperas activas, se justificaría su uso en el contexto de la práctica y se contrastaría con las técnicas de interrupciones o DMA para escenarios de producción. La discusión también podría abordar cualquier desafío encontrado durante la implementación y cómo se resolvió.
+
+\end{document}
